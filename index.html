@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>成大午餐轉盤</title>
+<style>
+  :root {
+    --bg: #fbf7f2; --card: #fff; --text: #2b2420; --muted: #7a6f68; --line: #eadfd4;
+    --accent: #b5442a; --accent-2: #e8a33d; --chip: #f3ebe3; --good: #2f8f5b;
+    --shadow: 0 6px 24px rgba(80,40,20,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1b1715; --card:#26201d; --text:#f2ebe5; --muted:#b0a59c; --line:#3a312c;
+            --accent:#e0674a; --accent-2:#f0b55a; --chip:#332a26; --good:#4fbf83; --shadow:0 6px 24px rgba(0,0,0,.35); }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; line-height:1.5; }
+  header { max-width:1200px; margin:0 auto; padding:20px 16px 8px; display:flex; align-items:center;
+    justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:1.55rem; }
+  header h1 span { color:var(--accent); }
+  header p { margin:2px 0 0; color:var(--muted); font-size:.92rem; }
+  .btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:10px;
+    padding:8px 14px; cursor:pointer; font-size:.92rem; white-space:nowrap; }
+  a.btn { text-decoration:none; display:inline-block; text-align:center; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.small { padding:4px 10px; font-size:.85rem; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .banner { max-width:1200px; margin:0 auto 8px; padding:0 16px; }
+  .banner div { background:#fff4dc; color:#6b4b00; border:1px solid #f0d58f; border-radius:12px;
+    padding:10px 14px; font-size:.9rem; }
+  @media (prefers-color-scheme: dark) { .banner div { background:#3a3020; color:#f0d58f; border-color:#5a4a20; } }
+  .banner a { color:inherit; font-weight:700; cursor:pointer; }
+  main { max-width:1200px; margin:0 auto; padding:8px 16px 40px; display:grid;
+    grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:18px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:16px; }
+  .col { display:flex; flex-direction:column; gap:18px; min-width:0; }
+  h2 { font-size:1.05rem; margin:0 0 10px; }
+
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .toolbar input[type=text] { flex:1; min-width:140px; }
+  input[type=text], select { border:1px solid var(--line); background:var(--bg); color:var(--text);
+    border-radius:10px; padding:8px 10px; font-size:.95rem; }
+  .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:.9rem; margin-bottom:10px; color:var(--muted); }
+  .filters label { display:flex; align-items:center; gap:4px; }
+  .filters input[type=checkbox] { accent-color:var(--accent); }
+
+  /* 搜尋結果 */
+  .results { list-style:none; margin:10px 0 0; padding:0; max-height:720px; overflow:auto; }
+  .results li { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .results li:hover { background:var(--chip); }
+  .results li.sel { background:var(--chip); }
+  .results .nm { flex:1; min-width:0; }
+  .results .nm b { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta { color:var(--muted); font-size:.82rem; }
+  .star { color:var(--accent-2); }
+  .add { flex-shrink:0; }
+  .count { color:var(--muted); font-size:.88rem; }
+
+  /* 詳細資料 */
+  .detail .ph { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; background:var(--chip); display:block; }
+  .detail .attr { font-size:.72rem; color:var(--muted); margin-top:2px; }
+  .detail h3 { margin:10px 0 4px; font-size:1.2rem; }
+  .detail .row { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
+  .tag { background:var(--chip); border-radius:999px; padding:2px 10px; font-size:.85rem; }
+  .tag.open { color:var(--good); font-weight:700; }
+  .tag.closed { color:#c0392b; font-weight:700; }
+  .detail .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .empty { color:var(--muted); text-align:center; padding:18px 0; font-size:.92rem; }
+
+  /* 轉盤 */
+  .wheel-card { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .wheel-wrap { position:relative; width:min(100%,340px); aspect-ratio:1; }
+  #wheel { width:100%; height:100%; display:block; }
+  .pointer { position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:14px solid transparent; border-right:14px solid transparent; border-top:26px solid var(--accent); z-index:2;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+  .hub { position:absolute; inset:0; margin:auto; width:22%; height:22%; border-radius:50%; background:var(--card);
+    border:4px solid var(--accent); display:grid; place-items:center; font-weight:700; color:var(--accent); cursor:pointer; user-select:none; }
+  .spin-btn { background:var(--accent); color:#fff; border:0; border-radius:999px; padding:12px 36px;
+    font-size:1.1rem; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(181,68,42,.35); }
+  .spin-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .chip { background:var(--chip); border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:.85rem; }
+  .chip button { background:none; border:0; color:var(--muted); cursor:pointer; padding:0 0 0 4px; font-size:.9rem; }
+  .chip.skip { text-decoration:line-through; opacity:.6; cursor:pointer; }
+
+  /* 彈窗 */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:2000; padding:16px; }
+  .modal-bg.show { display:flex; }
+  .modal { background:var(--card); border-radius:20px; padding:24px; width:min(100%,380px); text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.3); animation:pop .3s cubic-bezier(.2,1.4,.4,1); }
+  .modal .result { font-size:1.6rem; font-weight:800; color:var(--accent); margin:6px 0; }
+  .modal .actions { display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+  .modal input { width:100%; margin:10px 0; }
+  .modal p { font-size:.88rem; color:var(--muted); text-align:left; }
+  @keyframes pop { from { transform:scale(.7); opacity:0; } to { transform:scale(1); opacity:1; } }
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:3000; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(90px); background:var(--text); color:var(--bg);
+    padding:10px 18px; border-radius:999px; font-size:.92rem; transition:transform .3s; z-index:4000; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  footer { text-align:center; color:var(--muted); font-size:.82rem; padding-bottom:24px; }
+
+  .gframe { width:100%; height:330px; border:0; border-radius:12px; background:var(--chip); display:block; margin-top:10px; }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg .chip { cursor:pointer; user-select:none; }
+  .seg .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .hint { color:var(--muted); font-size:.82rem; margin:6px 0 0; }
+
+  .filters select { padding:6px 8px; font-size:.88rem; }
+  .hours { width:100%; border-collapse:collapse; font-size:.86rem; margin-top:8px; }
+  .hours td { padding:3px 6px; border-bottom:1px solid var(--line); }
+  .hours tr.today td { font-weight:700; color:var(--accent); }
+  .big-rating { font-size:1.6rem; font-weight:800; }
+  details.add { margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+  details.add summary { cursor:pointer; font-weight:700; }
+  .add-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .add-form input[name=name] { grid-column:1 / -1; }
+  .add-form .full { grid-column:1 / -1; }
+  .addr { color:var(--muted); font-size:.8rem; display:block; }
+  .badge-mine { background:#e6f4ea; color:#2f8f5b; border-radius:6px; padding:0 6px; font-size:.75rem; margin-left:4px; }
+  .open-dot { color:var(--good); font-weight:700; }
+  .close-dot { color:#c0392b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🍱 成大<span>午餐轉盤</span></h1>
+    <p id="subtitle">內建成大周邊餐廳資料庫：評分、價位、營業時間一次看，丟進轉盤讓它幫你決定。</p>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <section class="card">
+      <div class="toolbar">
+        <input type="text" id="q" placeholder="搜尋店名，例如 拉麵、丼、Pasta">
+        <select id="sort" title="排序">
+          <option value="dist">依距離</option><option value="rating">依評分</option>
+          <option value="reviews">依評論數</option><option value="price">依價格</option>
+        </select>
+      </div>
+      <div class="seg" id="catChips"></div>
+      <div class="filters" style="margin-top:10px">
+        <label>區域 <select id="fArea"></select></label>
+        <label>評分 <select id="fRating">
+          <option value="0">不限</option><option value="4">4.0+</option><option value="4.3">4.3+</option><option value="4.5">4.5+</option>
+        </select></label>
+        <label>價位 <select id="fPrice">
+          <option value="9">不限</option><option value="1">$ 200 以下</option>
+        </select></label>
+        <label><input type="checkbox" id="fOpen"> 現在有營業</label>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap">
+        <span class="count" id="resCount"></span>
+        <button class="btn small" id="addAll">＋ 篩選結果全部加入轉盤</button>
+      </div>
+      <ul class="results" id="results"></ul>
+
+      <details class="add" id="addBox">
+        <summary>➕ 資料庫裡沒有？自己新增一家店</summary>
+        <form class="add-form" id="addForm" autocomplete="off">
+          <input name="name" type="text" placeholder="店名" maxlength="24" required>
+          <select name="cat" id="addCat"></select>
+          <select name="price"><option value="1">$ 200 以下</option><option value="2">$$ 200–400</option></select>
+          <input name="area" type="text" placeholder="所在路名，例如 育樂街" maxlength="10">
+          <input name="addr" type="text" class="full" placeholder="地址，例如 台南市東區育樂街100號" maxlength="40">
+          <select name="rating"><option value="">我的評分（可不填）</option>
+            <option>5</option><option>4.5</option><option>4</option><option>3.5</option><option>3</option></select>
+          <button class="btn primary full" type="submit">新增到資料庫</button>
+        </form>
+      </details>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card detail" id="detail">
+      <div class="empty">👈 點清單中的餐廳<br>就能看到評分、價位、地址和營業時間</div>
+    </section>
+
+    <section class="card wheel-card">
+      <h2 style="align-self:flex-start">🎡 我的候選轉盤 <span class="count" id="candCount"></span></h2>
+      <div class="wheel-wrap">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="680" height="680"></canvas>
+        <div class="hub" id="hub">GO!</div>
+      </div>
+      <button class="spin-btn" id="spinBtn">開始轉！</button>
+      <div class="chips" id="cands"></div>
+      <button class="btn small" id="clearCands">清空轉盤</button>
+    </section>
+  </div>
+</main>
+
+<footer>Made with Vibe Coding × AI ｜ 餐廳評分與營業時間整理自 Google 地圖（2026/10/19），實際以店家公告為準 ｜ 按空白鍵也能轉</footer>
+
+<div class="modal-bg" id="resultModal">
+  <div class="modal">
+    <div class="meta">今天就吃⋯⋯</div>
+    <div class="result" id="resName"></div>
+    <div class="meta" id="resInfo"></div>
+    <div class="actions">
+      <a class="btn primary" id="resNav" target="_blank" rel="noopener">🧭 用 Google 地圖導航</a>
+      <button class="btn" id="resShow">⭐ 看這家的詳細資料</button>
+      <button class="btn" id="resSkip">🙅 不要，跳過再轉一次</button>
+      <button class="btn" data-close>關閉</button>
+    </div>
+  </div>
+</div>
+<canvas id="confetti"></canvas>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   餐廳資料庫（整理自 Google 地圖，2026/10/19；只收成大 1.2 公里內、中午有營業的店）
+   hours：週一|週二|…|週日，「休」＝公休；price：1 = $200 以下，2 = $200–400
+   ===================================================================== */
+const DB = [
+  { id:'ChIJZ8_wb-x3bjQRZQSB_IBoV5w', name:"Mr.布魯 水煮健康餐", cat:'健康餐', area:'育樂街', addr:'台南市東區育樂街8號', lat:22.99551, lng:120.2177, rating:4.1, reviews:172, price:1, hours:'10:00-19:30|10:00-19:30|10:00-19:30|10:00-19:30|10:00-19:30|10:00-19:00|休' },
+  { id:'ChIJ2_VpZJJ2bjQR3bW88q5cymM', name:"成大館", cat:'台式便當', area:'育樂街', addr:'台南市東區育樂街38號', lat:22.99556, lng:120.21719, rating:3.6, reviews:987, price:1, hours:'11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|休|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00' },
+  { id:'ChIJMamTfpJ2bjQRUReXBj33m98', name:"活力小廚", cat:'台式便當', area:'育樂街', addr:'台南市東區育樂街52號', lat:22.99564, lng:120.21685, rating:4.2, reviews:352, price:1, hours:'11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|休|休' },
+  { id:'ChIJ792LfpJ2bjQR406j7U-1TBw', name:"煦悅便當", cat:'台式便當', area:'育樂街', addr:'台南市東區育樂街52號', lat:22.9957, lng:120.21692, rating:3.9, reviews:334, price:1, hours:'10:30-14:00,16:00-19:30|10:30-14:00,16:00-19:30|10:30-14:00,16:00-19:30|10:30-14:00,16:00-19:30|10:30-14:00,16:00-19:30|休|休' },
+  { id:'ChIJDTYHD7t3bjQRE7kO1HFFVi8', name:"成功燒臘便當", cat:'台式便當', area:'育樂街', addr:'台南市東區育樂街81號', lat:22.9956, lng:120.21587, rating:3.7, reviews:295, price:1, hours:'10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|休' },
+  { id:'ChIJyaIJuY12bjQRHkMq_HImiyU', name:"元味屋和風洋食", cat:'日式', area:'育樂街', addr:'台南市東區育樂街160號', lat:22.99531, lng:120.21474, rating:4.5, reviews:2061, price:1, hours:'11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|休' },
+  { id:'ChIJ85V54op3bjQROhkCDN3E23s', name:"賀也拉麵", cat:'日式', area:'育樂街', addr:'台南市東區育樂街210號', lat:22.9936, lng:120.21455, rating:4.9, reviews:1065, price:2, hours:'11:00-13:30,17:00-20:15|休|11:00-13:30,17:00-20:15|11:00-13:30,17:00-20:15|11:00-13:30,17:00-20:15|11:00-13:30,17:00-20:15|11:00-13:30,17:00-20:15' },
+  { id:'ChIJERQl5qZ3bjQR0WykCmEQn18', name:"二樂丼飯 成大店", cat:'日式', area:'育樂街', addr:'台南市東區育樂街179號', lat:22.99391, lng:120.21475, rating:4.2, reviews:594, price:1, hours:'11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00|11:00-14:00,17:00-21:00' },
+  { id:'ChIJhxc_cv53bjQRT_n-KOEuceI', name:"京丼", cat:'日式', area:'育樂街', addr:'台南市東區育樂街220號', lat:22.99248, lng:120.21448, rating:4.8, reviews:270, price:2, hours:'11:00-14:30,16:30-21:30|休|11:00-14:30,16:30-21:30|11:00-14:30,16:30-21:30|11:00-14:30,16:30-21:30|11:00-14:30,16:30-21:30|11:00-14:30,16:30-21:30' },
+  { id:'ChIJjZRPHrd3bjQRQRQuNzQ9KgY', name:"康舍FOOD HOUSE", cat:'日式', area:'育樂街', addr:'台南市東區育樂街202號', lat:22.99373, lng:120.21448, rating:4.4, reviews:225, price:1, hours:'11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|休|休' },
+  { id:'ChIJJVelqBh3bjQR73GY8EY9WvU', name:"柴犬咖哩", cat:'日式', area:'育樂街', addr:'台南市東區育樂街47號', lat:22.99543, lng:120.21683, rating:4.6, reviews:126, price:1, hours:'11:00-13:00,17:00-20:00|11:00-13:00,17:00-20:00|11:00-13:00,17:00-20:00|11:00-13:00,17:00-20:00|11:00-13:00,17:00-20:00|休|休' },
+  { id:'ChIJY66geL93bjQR-72CLvCL4b8', name:"BG 韓式炸雞", cat:'異國', area:'育樂街', addr:'台南市東區育樂街66巷18號', lat:22.99613, lng:120.21593, rating:4.7, reviews:824, price:1, hours:'11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00' },
+  { id:'ChIJ93pxTup3bjQRkfPXGFJkGZw', name:"Milan 印度料理", cat:'異國', area:'育樂街', addr:'台南市東區育樂街53-6號', lat:22.99539, lng:120.21643, rating:4.8, reviews:638, price:2, hours:'休|11:00-14:30,17:00-21:30|11:00-14:30,17:00-21:30|11:00-14:30,17:00-21:30|11:00-14:30,17:00-21:30|11:00-14:30,17:00-21:30|11:00-14:30,17:00-21:30' },
+  { id:'ChIJEVT1bqF3bjQRXcBYJnmEy3Q', name:"Black Dish Pasta 黑盤義大利麵", cat:'義式', area:'育樂街', addr:'台南市東區育樂街15號', lat:22.99539, lng:120.21756, rating:4.3, reviews:525, price:2, hours:'11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00|11:30-15:30,17:00-21:00' },
+  { id:'ChIJq7mhJoB3bjQR9AIDgnJiuHQ', name:"哈燒小食堂義式料理餐廳", cat:'義式', area:'育樂街', addr:'台南市東區育樂街254號', lat:22.99192, lng:120.21441, rating:4.9, reviews:323, price:2, hours:'休|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|休' },
+  { id:'ChIJrSR5eZJ2bjQR8C0TggCgrLA', name:"大醬川麵館", cat:'麵食', area:'育樂街', addr:'台南市東區育樂街35-28號', lat:22.99539, lng:120.21691, rating:4.3, reviews:850, price:1, hours:'11:00-14:00,16:30-20:30|11:00-14:00,16:30-20:30|11:00-14:00,16:30-20:30|11:00-14:00,16:30-20:30|11:00-14:00,16:30-20:30|休|11:00-14:00,16:30-20:30' },
+  { id:'ChIJQ0w0mo12bjQRIQyOEpvRLmc', name:"牛伯麵店", cat:'麵食', area:'育樂街', addr:'台南市東區育樂街91號', lat:22.99558, lng:120.21561, rating:4.3, reviews:639, price:1, hours:'11:30-20:00|11:30-20:00|11:30-20:00|11:30-20:00|11:30-20:00|休|11:30-20:00' },
+  { id:'ChIJg6ftE1F3bjQRoylQc5RN-yw', name:"詠琳食務所", cat:'台式便當', area:'光明街', addr:'台南市東區光明街64-2號', lat:22.99767, lng:120.22835, rating:4.7, reviews:126, price:1, hours:'11:00-13:30,17:00-19:30|11:00-13:30,17:00-19:30|11:00-13:30,17:00-19:30|11:00-13:30,17:00-19:30|11:00-13:30,17:00-19:30|休|休' },
+  { id:'ChIJi0AQFI92bjQRJOLAoj0bkvE', name:"山東餃子館", cat:'麵食', area:'前鋒路', addr:'台南市東區前鋒路47號', lat:22.99039, lng:120.21263, rating:4.0, reviews:125, price:1, hours:'09:00-20:00|09:00-20:00|09:00-20:00|09:00-20:00|09:00-20:00|09:00-20:00|休' },
+  { id:'ChIJI9UQqJp2bjQRl0vOf-jSBf4', name:"紅樓小館", cat:'台式便當', area:'勝利路', addr:'台南市東區勝利路165巷11號', lat:22.99583, lng:120.2171, rating:4.1, reviews:1535, price:1, hours:'休|10:30-21:00|10:30-21:00|10:30-21:00|10:30-21:00|10:30-21:00|10:30-21:00' },
+  { id:'ChIJJ3JCh5J2bjQRFSdRn-I3-bg', name:"食方味會館", cat:'台式便當', area:'勝利路', addr:'台南市東區勝利路171巷9號', lat:22.99593, lng:120.21708, rating:3.2, reviews:559, price:1, hours:'10:30-21:00|10:30-21:00|10:30-21:00|10:30-21:00|10:30-21:00|休|10:30-21:00' },
+  { id:'ChIJQ2yTLAB3bjQRFPGlqv1jL6c', name:"飯丸屋 成大店", cat:'日式', area:'勝利路', addr:'台南市東區勝利路177巷12-1號', lat:22.99615, lng:120.2171, rating:4.4, reviews:71, price:1, hours:'10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|10:30-20:00|休' },
+  { id:'ChIJs3SPkZF2bjQRcMOkqrkYpkE', name:"bridge plus", cat:'早午餐', area:'勝利路', addr:'台南市東區勝利路52巷13號', lat:22.99196, lng:120.21863, rating:4.5, reviews:552, price:2, hours:'休|休|09:00-17:00|09:00-17:00|09:00-17:00|09:00-17:00|09:00-17:00' },
+  { id:'ChIJ5zhpv5F2bjQRGc-Bn01qNo8', name:"珍妮花與南洋杉", cat:'異國', area:'勝利路', addr:'台南市東區勝利路52巷2號', lat:22.99154, lng:120.21819, rating:4.3, reviews:1942, price:2, hours:'11:00-20:00|11:00-20:00|休|休|11:00-20:00|11:00-20:00|11:00-20:00' },
+  { id:'ChIJjSPHLcd3bjQRVgiAEk__uXk', name:"Pasta Now", cat:'義式', area:'勝利路', addr:'台南市東區勝利路89號', lat:22.99196, lng:120.21765, rating:4.9, reviews:1367, price:2, hours:'11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00|11:30-14:30,17:00-21:00' },
+  { id:'ChIJo6VWVsh3bjQRQcSQokI8fY4', name:"霸王便當", cat:'台式便當', area:'大學路', addr:'台南市東區大學路22巷16號', lat:22.99513, lng:120.22129, rating:4.0, reviews:146, price:1, hours:'11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|休|11:00-14:00,17:00-20:00' },
+  { id:'ChIJ7w1Ej5J2bjQRfsDGbEw5SmM', name:"拾分", cat:'早午餐', area:'大學路', addr:'台南市東區大學路西段35號', lat:22.99621, lng:120.21744, rating:4.5, reviews:898, price:2, hours:'10:00-15:00|休|休|10:00-15:00|休|10:00-15:00|10:00-15:00' },
+  { id:'ChIJ8X-8bZN2bjQRaiKfCVpK-aQ', name:"Pho 22 河粉南洋小吃", cat:'異國', area:'大學路', addr:'台南市東區大學路22巷3號', lat:22.99553, lng:120.22129, rating:4.2, reviews:1308, price:2, hours:'11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00' },
+  { id:'ChIJLXyinZN2bjQRWbXmgstQUFc', name:"London Pie", cat:'義式', area:'大學路', addr:'台南市東區大學路22巷25號', lat:22.9949, lng:120.22142, rating:4.6, reviews:457, price:1, hours:'11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|休' },
+  { id:'ChIJE2kA9ep2bjQRjMKn4FTDq48', name:"金湖餃子館", cat:'麵食', area:'小東路', addr:'台南市東區小東路198巷24弄35號', lat:22.99898, lng:120.22667, rating:3.9, reviews:574, price:1, hours:'休|11:00-14:00,16:30-20:00|11:00-14:00,16:30-20:00|11:00-14:00,16:30-20:00|11:00-14:00,16:30-20:00|11:00-14:00,16:30-20:00|11:00-14:00,16:30-20:00' },
+  { id:'ChIJySq28HJ3bjQRGLz1Vym_vsQ', name:"KOKOMO 漢堡", cat:'速食', area:'府連路', addr:'台南市東區府連路309號', lat:22.98522, lng:120.21531, rating:4.7, reviews:253, price:2, hours:'10:30-16:00|休|休|10:30-16:00|10:30-16:00|09:30-16:00|09:30-16:00' },
+  { id:'ChIJ0cauWYl2bjQR9QwkSaA5lPw', name:"漢堡王 成功路店", cat:'速食', area:'成功路', addr:'台南市北區成功路18號', lat:22.99787, lng:120.20912, rating:4.3, reviews:2851, price:1, hours:'10:00-22:00|10:00-22:00|10:00-22:00|10:00-22:00|10:00-22:00|10:00-22:00|10:00-22:00' },
+  { id:'ChIJh6mMdhN3bjQRWyQRXF1a5kY', name:"糧膳健康廚房", cat:'健康餐', area:'東安路', addr:'台南市東區東安路124號', lat:22.99388, lng:120.22685, rating:4.6, reviews:284, price:1, hours:'11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00,16:30-19:30|11:00-14:00|休' },
+  { id:'ChIJjUO9u5V2bjQRFQgrzLUpRPE', name:"港記燒臘便當", cat:'台式便當', area:'東安路', addr:'台南市東區東安路97號', lat:22.99306, lng:120.22636, rating:4.0, reviews:2083, price:1, hours:'09:30-20:00|09:30-20:00|09:30-20:00|09:30-20:00|09:30-20:00|休|09:30-20:00' },
+  { id:'ChIJXah82JN2bjQRB0_TGpRkqLY', name:"肉肉控丼飯", cat:'日式', area:'東寧路', addr:'台南市東區東寧路15巷8-1號', lat:22.99256, lng:120.22048, rating:4.4, reviews:995, price:1, hours:'11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|休|休' },
+  { id:'ChIJ-Rs2bRt3bjQRu9R_qaEMedQ', name:"Mr. Meerkat", cat:'早午餐', area:'東寧路', addr:'台南市東區東寧路120巷9號', lat:22.99151, lng:120.22199, rating:4.8, reviews:3620, price:2, hours:'09:00-16:30|09:00-16:30|09:00-16:30|09:00-16:30|09:00-16:30|09:00-16:30|09:00-16:30' },
+  { id:'ChIJjee2uZZ2bjQRYq52cevF3dQ', name:"134 Witches", cat:'早午餐', area:'東寧路', addr:'台南市東區東寧路134巷61-2號', lat:22.99061, lng:120.22319, rating:4.4, reviews:550, price:2, hours:'09:30-17:00|09:30-17:00|休|09:30-17:00|09:30-17:00|09:30-17:00|09:30-17:00' },
+  { id:'ChIJVWRw-X13bjQRIj_-W_2uqBA', name:"NOTHING but coffee", cat:'早午餐', area:'東寧路', addr:'台南市東區東寧路15巷14號', lat:22.99254, lng:120.22091, rating:4.8, reviews:317, price:2, hours:'07:30-17:00|07:30-17:00|休|07:30-17:00|07:30-17:00|10:00-18:00|10:00-18:00' },
+  { id:'ChIJDxWX_ZN2bjQRS4H3lUBCAII', name:"摩斯漢堡 東寧店", cat:'速食', area:'東寧路', addr:'台南市東區東寧路59號', lat:22.99213, lng:120.22178, rating:4.0, reviews:861, price:2, hours:'06:00-22:30|06:00-22:30|06:00-22:30|06:00-22:30|06:00-22:30|06:00-22:30|06:00-22:30' },
+  { id:'ChIJtzSKtJZ2bjQRfBTdVlb0jqo', name:"香香小吃", cat:'麵食', area:'東寧路', addr:'台南市東區東寧路134巷4-4號', lat:22.99072, lng:120.22272, rating:4.4, reviews:969, price:1, hours:'11:20-14:00,16:30-20:00|11:20-14:00,16:30-20:00|11:20-14:00,16:30-20:00|11:20-14:00,16:30-20:00|休|11:20-14:00,16:30-20:00|11:20-14:00,16:30-20:00' },
+  { id:'ChIJaZFP-Pt2bjQRunOZGy_NNW4', name:"穀秣麵食屋", cat:'麵食', area:'東寧路', addr:'台南市東區東寧路201巷92號', lat:22.99335, lng:120.22621, rating:4.3, reviews:386, price:1, hours:'11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00|11:00-13:30,17:00-21:00' },
+  { id:'ChIJ0z9nL7B3bjQR1f_LwpPyLiU', name:"黑家麵館", cat:'麵食', area:'東寧路', addr:'台南市東區東寧路260號', lat:22.99065, lng:120.22573, rating:4.3, reviews:227, price:1, hours:'休|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00' },
+  { id:'ChIJNcXC9pp3bjQRGoVwW6I2fOA', name:"Mr. H 麵食", cat:'麵食', area:'東平路', addr:'台南市東區東平路174號', lat:22.9957, lng:120.22905, rating:4.7, reviews:1947, price:2, hours:'11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00|11:00-21:00' },
+  { id:'ChIJWQ_y-MJ3bjQRDhmjKjt2t-A', name:"Maiya 印度咖哩", cat:'異國', area:'東豐路', addr:'台南市北區東豐路167號', lat:23.00352, lng:120.21899, rating:4.6, reviews:278, price:2, hours:'11:00-14:30,17:00-22:00|11:00-14:30,17:00-22:00|11:00-14:30,17:00-22:00|11:00-14:30,17:00-22:00|休|11:00-14:30,17:00-22:00|11:00-14:30,17:00-22:00' },
+  { id:'ChIJ-5CZb9d3bjQREybZoB5U9hI', name:"宮本丼飯", cat:'日式', area:'東門路', addr:'台南市東區東門路二段157號', lat:22.98547, lng:120.22307, rating:4.6, reviews:2417, price:2, hours:'11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00|11:00-22:00' },
+  { id:'ChIJA9j8v5Z2bjQRzeUDorO5iDI', name:"肉丼丼食專門店", cat:'日式', area:'林森路', addr:'台南市東區林森路二段121號', lat:22.99049, lng:120.22392, rating:4.4, reviews:1926, price:2, hours:'11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00|11:30-14:00,17:00-20:00' },
+  { id:'ChIJGa0SlDN3bjQR8A30dV163HA', name:"麵通屋", cat:'日式', area:'民族路', addr:'台南市東區民族路一段58號', lat:22.99443, lng:120.21451, rating:4.5, reviews:808, price:2, hours:'11:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00|11:00-14:00,17:00-20:00' },
+  { id:'ChIJ2T4MYf53bjQRcUdzrsAd34M', name:"DOMO Pasta 多麼義大利麵", cat:'義式', area:'民族路', addr:'台南市中西區民族路二段68號', lat:22.99459, lng:120.21005, rating:4.0, reviews:787, price:2, hours:'11:00-20:30|11:00-20:30|11:00-20:30|11:00-20:30|11:00-20:30|11:00-20:30|11:00-20:30' },
+  { id:'ChIJa2eCw6J3bjQRWYsKTjdCh2A', name:"來呷飯川食堂", cat:'台式便當', area:'長榮路', addr:'台南市東區長榮路三段70號', lat:22.99383, lng:120.22187, rating:4.1, reviews:773, price:2, hours:'11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30|11:30-14:30,17:30-21:30' },
+  { id:'ChIJYyRiTwB3bjQRea5rypQqGkg', name:"Bottoms Up", cat:'早午餐', area:'長榮路', addr:'台南市東區長榮路三段131號', lat:22.9954, lng:120.22175, rating:4.5, reviews:506, price:2, hours:'09:30-17:00|09:30-17:00|休|休|休|09:30-17:00|09:30-17:00' },
+  { id:'ChIJe3CiawB3bjQRoc8TMoA_-Zc', name:"91 Brunch", cat:'早午餐', area:'長榮路', addr:'台南市東區長榮路三段24巷24號', lat:22.99238, lng:120.22252, rating:4.8, reviews:435, price:2, hours:'07:30-16:00|07:30-16:00|07:30-16:00|07:30-16:00|07:30-16:00|09:00-16:00|09:00-16:00' },
+  { id:'ChIJM3C98ZN2bjQRvN_6YwEwMaY', name:"小茂屋", cat:'麵食', area:'長榮路', addr:'台南市東區長榮路三段40號', lat:22.99312, lng:120.22183, rating:4.0, reviews:3218, price:1, hours:'10:00-24:00|10:00-24:00|10:00-24:00|10:00-24:00|10:00-24:00|10:00-24:00|10:00-24:00' },
+  { id:'ChIJ9xL2dLR3bjQRjLmLkh-R3U8', name:"Daniel 舒肥餐盒", cat:'健康餐', area:'青年路', addr:'台南市中西區青年路209號', lat:22.9917, lng:120.21113, rating:4.6, reviews:274, price:1, hours:'11:00-19:00|11:00-19:00|11:00-19:00|11:00-19:00|11:00-19:00|11:00-19:00|休' },
+];
+
+/* ===================== 設定 ===================== */
+const NCKU = [22.9946, 120.2190];
+const CATS = ['台式便當', '麵食', '日式', '早午餐', '義式', '異國', '速食', '健康餐'];
+const CAT_ICON = { 台式便當:'🍱', 麵食:'🍜', 日式:'🍣', 早午餐:'🥪', 義式:'🍝', 異國:'🌶️', 速食:'🍔', 健康餐:'🥗' };
+const MAIN_AREAS = ['育樂街', '勝利路', '大學路', '東寧路', '長榮路'];
+const PRICE_TXT = { 1: '$ 200 以下', 2: '$$ 200–400' };
+const WEEK = ['一', '二', '三', '四', '五', '六', '日'];
+const COLORS = ['#b5442a','#e8a33d','#3f7d6e','#d9734e','#5b6fa8','#c25b7a','#7a9a3c','#8a5a44','#2f8fa0','#d4a23a'];
+
+/* ===================== 小工具 ===================== */
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('nckuDB.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('nckuDB.' + k, JSON.stringify(v)); } catch {} },
+};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400); }
+function dist(a, b) {
+  const R = 6371000, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLng = (b[1] - a[1]) * r;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+const fmtDist = d => d == null ? '' : d < 1000 ? `${Math.round(d / 10) * 10} m` : `${(d / 1000).toFixed(1)} km`;
+const gLink = p => p.mine ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.addr || p.name + ' 台南')}`
+  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${p.id}`;
+const gNav = p => p.mine ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.addr || p.name + ' 台南')}`
+  : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name)}&destination_place_id=${p.id}`;
+
+/* ---------- 營業時間 ---------- */
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+function dayRanges(p, i) {   // i：0=週一
+  const s = (p.hours || '').split('|')[i];
+  if (!s || s === '休') return [];
+  return s.split(',').map(r => { const [a, b] = r.split('-').map(toMin); return [a, b <= a ? b + 1440 : b]; });
+}
+const todayIdx = () => (new Date().getDay() + 6) % 7;
+function isOpen(p) {
+  if (!p.hours) return null;
+  const now = new Date(), m = now.getHours() * 60 + now.getMinutes(), d = todayIdx();
+  if (dayRanges(p, d).some(([a, b]) => m >= a && m < b)) return true;
+  return dayRanges(p, (d + 6) % 7).some(([a, b]) => b > 1440 && m < b - 1440);   // 前一天營業到半夜
+}
+const todayText = p => (p.hours || '').split('|')[todayIdx()] || '';
+
+/* ===================== 資料 ===================== */
+let mine = store.get('mine', []);          // 使用者自己新增的店
+let all = [];
+function rebuild() {
+  all = [...DB, ...mine.map(p => ({ ...p, mine: true }))];
+  all.forEach(p => p.d = p.lat ? dist(NCKU, [p.lat, p.lng]) : null);
+}
+rebuild();
+let candidates = store.get('cands', []);   // 存店家 id
+let skipped = new Set();
+let selectedId = null;
+let catFilter = 'all';
+const byId = id => all.find(p => p.id === id);
+
+/* ===================== 篩選 ===================== */
+function initFilters() {
+  $('#fArea').innerHTML = '<option value="">全部</option>' + MAIN_AREAS.map(a => `<option>${a}</option>`).join('') + '<option value="其他">其他路段</option>';
+  $('#addCat').innerHTML = CATS.map(c => `<option>${c}</option>`).join('');
+}
+function filtered(ignoreCat) {
+  const kw = $('#q').value.trim().toLowerCase(), area = $('#fArea').value;
+  const minR = +$('#fRating').value, maxP = +$('#fPrice').value, openOnly = $('#fOpen').checked;
+  const list = all.filter(p =>
+    (ignoreCat || catFilter === 'all' || p.cat === catFilter) &&
+    (!kw || p.name.toLowerCase().includes(kw) || p.cat.includes(kw) || (p.area || '').includes(kw) || (p.addr || '').includes(kw)) &&
+    (!area || (area === '其他' ? !MAIN_AREAS.includes(p.area) : p.area === area)) &&
+    (!minR || (p.rating ?? 0) >= minR) &&
+    (p.price <= maxP) &&
+    (!openOnly || isOpen(p) === true));
+  const s = $('#sort').value;
+  const key = { dist: p => p.d ?? 1e9, rating: p => -(p.rating ?? 0), reviews: p => -(p.reviews ?? 0), price: p => p.price * 1e6 + (p.d ?? 1e5) }[s];
+  return list.sort((a, b) => key(a) - key(b));
+}
+function renderCatChips() {
+  const base = filtered(true), box = $('#catChips'); box.innerHTML = '';
+  [['all', `全部 ${base.length}`], ...CATS.map(c => [c, `${CAT_ICON[c]} ${c} ${base.filter(p => p.cat === c).length}`])]
+    .forEach(([k, label]) => {
+      const c = document.createElement('span');
+      c.className = 'chip' + (catFilter === k ? ' on' : ''); c.textContent = label;
+      c.onclick = () => { catFilter = k; render(); };
+      box.appendChild(c);
+    });
+}
+
+/* ===================== 清單 & 地圖點 ===================== */
+const isCand = id => candidates.includes(id);
+function metaLine(p) {
+  const o = isOpen(p);
+  return [
+    p.rating ? `<span class="star">★</span> ${(+p.rating).toFixed(1)}${p.reviews ? `（${p.reviews.toLocaleString()}）` : ''}` : '',
+    PRICE_TXT[p.price], `${CAT_ICON[p.cat] || ''}${p.cat}`, esc(p.area || ''), fmtDist(p.d),
+    o === true ? '<span class="open-dot">營業中</span>' : o === false ? '<span class="close-dot">休息中</span>' : '',
+  ].filter(Boolean).join('・');
+}
+function render() {
+  renderCatChips();
+  const list = filtered();
+  const ul = $('#results'); ul.innerHTML = '';
+  if (!list.length) ul.innerHTML = '<li class="empty" style="justify-content:center;cursor:default">沒有符合條件的餐廳，放寬篩選試試看</li>';
+  list.forEach(p => {
+    const li = document.createElement('li'); li.dataset.id = p.id;
+    li.innerHTML = `<div class="nm"><b>${esc(p.name)}${p.mine ? '<span class="badge-mine">自訂</span>' : ''}</b><span class="meta">${metaLine(p)}</span>${p.addr ? `<span class="addr">📍 ${esc(p.addr)}</span>` : ''}</div>
+      <button class="btn small add">${isCand(p.id) ? '✓ 已加入' : '＋ 轉盤'}</button>`;
+    li.onclick = () => select(p.id, true);
+    li.querySelector('.add').onclick = e => { e.stopPropagation(); toggleCand(p.id); };
+    ul.appendChild(li);
+  });
+  $('#resCount').textContent = `資料庫共 ${all.length} 家，符合條件 ${list.length} 家`;
+  refreshMarks();
+}
+function refreshMarks() {
+  document.querySelectorAll('#results li[data-id]').forEach(li => {
+    li.classList.toggle('sel', li.dataset.id === selectedId);
+    li.querySelector('.add').textContent = isCand(li.dataset.id) ? '✓ 已加入' : '＋ 轉盤';
+  });
+}
+
+/* ===================== 詳細資料 ===================== */
+function select(id, pan) {
+  const p = byId(id); if (!p) return;
+  selectedId = id;
+  const o = isOpen(p), t = todayIdx();
+  const hoursTable = p.hours ? `<table class="hours">${WEEK.map((w, i) => {
+      const s = p.hours.split('|')[i] || '';
+      return `<tr class="${i === t ? 'today' : ''}"><td>週${w}${i === t ? '（今天）' : ''}</td><td>${s === '休' ? '公休' : esc(s.replace(/,/g, '、'))}</td></tr>`;
+    }).join('')}</table>` : '<p class="hint">沒有營業時間資料</p>';
+  $('#detail').innerHTML = `
+    <h3 style="margin-top:0">${esc(p.name)}${p.mine ? '<span class="badge-mine">自訂</span>' : ''}</h3>
+    <div class="row" style="align-items:center">
+      ${p.rating ? `<span class="big-rating"><span class="star">★</span> ${(+p.rating).toFixed(1)}</span>
+        <span class="meta">${p.reviews ? p.reviews.toLocaleString() + ' 則 Google 評論' : '我的評分'}</span>` : '<span class="meta">尚無評分</span>'}
+    </div>
+    <div class="row">
+      <span class="tag">💰 ${PRICE_TXT[p.price]}</span>
+      <span class="tag">${CAT_ICON[p.cat] || ''} ${p.cat}</span>
+      ${p.area && !p.addr ? `<span class="tag">📍 ${esc(p.area)}</span>` : ''}
+      ${p.d != null ? `<span class="tag">🚶 距成大 ${fmtDist(p.d)}</span>` : ''}
+      ${o === true ? '<span class="tag open">● 營業中</span>' : o === false ? '<span class="tag closed">● 休息中</span>' : ''}
+    </div>
+    ${p.addr ? `<div class="meta" style="margin:6px 0">📍 ${esc(p.addr)}</div>` : ''}
+    ${hoursTable}
+    <div class="actions">
+      <button class="btn primary" id="dAdd">${isCand(p.id) ? '✓ 已在轉盤（點一下移除）' : '＋ 加入轉盤'}</button>
+      <a class="btn" href="${gLink(p)}" target="_blank" rel="noopener">Google 地圖看評論 ↗</a>
+      ${p.mine ? '<button class="btn" id="dDel" style="color:#c0392b">刪除這家</button>' : ''}
+    </div>`;
+  $('#dAdd').onclick = () => { toggleCand(p.id); select(p.id, false); };
+  if (p.mine) $('#dDel').onclick = () => {
+    if (!confirm(`確定刪除「${p.name}」？`)) return;
+    mine = mine.filter(x => x.id !== p.id); store.set('mine', mine);
+    candidates = candidates.filter(c => c !== p.id); store.set('cands', candidates);
+    rebuild(); selectedId = null;
+    $('#detail').innerHTML = '<div class="empty">已刪除</div>'; render(); renderCands();
+  };
+  refreshMarks();
+  document.querySelector(`#results li[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* ===================== 新增店家 ===================== */
+$('#addForm').onsubmit = e => {
+  e.preventDefault();
+  const f = e.target, name = f.name.value.trim();
+  if (!name) return toast('請輸入店名');
+  if (all.some(p => p.name === name)) return toast('資料庫裡已經有這家店了');
+  const p = { id: 'mine-' + Date.now(), name, cat: f.cat.value, area: f.area.value.trim() || '其他',
+    addr: f.addr.value.trim(), lat: null, lng: null, rating: f.rating.value ? +f.rating.value : null, reviews: 0, price: +f.price.value, hours: '' };
+  mine.push(p); store.set('mine', mine); rebuild();
+  f.reset();
+  render(); select(p.id, true); toast(`已新增：${name}`);
+};
+
+/* ===================== 候選轉盤 ===================== */
+function toggleCand(id) {
+  const p = byId(id);
+  if (isCand(id)) { candidates = candidates.filter(c => c !== id); toast(`已從轉盤移除：${p.name}`); }
+  else { candidates.push(id); toast(`已加入轉盤：${p.name}`); }
+  saveCands();
+}
+function saveCands() { store.set('cands', candidates); renderCands(); refreshMarks(); }
+const activeCands = () => candidates.filter(id => byId(id) && !skipped.has(id)).map(byId);
+function renderCands() {
+  candidates = candidates.filter(id => byId(id));
+  const box = $('#cands'); box.innerHTML = '';
+  candidates.forEach(id => {
+    const c = byId(id), s = document.createElement('span');
+    s.className = 'chip' + (skipped.has(id) ? ' skip' : '');
+    s.innerHTML = `${esc(c.name)}<button title="移除">✕</button>`;
+    s.querySelector('button').onclick = e => { e.stopPropagation(); skipped.delete(id); candidates = candidates.filter(x => x !== id); saveCands(); };
+    if (skipped.has(id)) { s.title = '這次跳過了，點一下放回'; s.onclick = () => { skipped.delete(id); renderCands(); }; }
+    box.appendChild(s);
+  });
+  if (!candidates.length) box.innerHTML = '<span class="meta">在清單按「＋ 轉盤」，把想吃的店加進來</span>';
+  $('#candCount').textContent = candidates.length ? `（${activeCands().length} 家）` : '';
+  $('#clearCands').hidden = !candidates.length;
+  buildSlices(); drawWheel();
+}
+
+const cv = $('#wheel'), ctx = cv.getContext('2d');
+let slices = [], rotation = 0, spinning = false, pick = null;
+function buildSlices() {
+  const list = activeCands(), size = Math.PI * 2 / Math.max(list.length, 1);
+  slices = list.map((c, i) => ({ c, start: i * size, end: (i + 1) * size,
+    color: (i && i === list.length - 1 && i % COLORS.length === 0) ? COLORS[2] : COLORS[i % COLORS.length] }));
+}
+function drawWheel() {
+  const W = cv.width, R = W / 2 - 10, c = W / 2;
+  ctx.clearRect(0, 0, W, W); ctx.save(); ctx.translate(c, c);
+  ctx.beginPath(); ctx.arc(0, 0, R + 7, 0, Math.PI * 2);
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent'); ctx.fill();
+  if (!slices.length) {
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fillStyle = '#d8d0c8'; ctx.fill();
+    ctx.fillStyle = '#6b625b'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('先從清單加入餐廳', 0, -R * 0.45); ctx.restore(); return;
+  }
+  ctx.rotate(rotation);
+  for (const s of slices) {
+    const a0 = s.start - Math.PI / 2, a1 = s.end - Math.PI / 2;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a1); ctx.closePath();
+    ctx.fillStyle = s.color; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.save(); ctx.rotate((a0 + a1) / 2);
+    const n = slices.length, fs = n <= 6 ? 30 : n <= 10 ? 26 : n <= 16 ? 21 : 17;
+    ctx.font = `bold ${fs}px "Noto Sans TC","Microsoft JhengHei",sans-serif`;
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 4;
+    let label = s.c.name;
+    while (ctx.measureText(label).width > R * 0.66 && label.length > 2) label = label.slice(0, -2) + '…';
+    ctx.fillText(label, R - 18, 0); ctx.restore();
+  }
+  ctx.restore();
+}
+function sliceAtPointer(rot) { const T = Math.PI * 2, a = ((-rot % T) + T) % T; return slices.find(s => a >= s.start && a < s.end) || slices[0]; }
+let audio;
+function tick(f = 900, d = .03, v = .07) {
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain(); o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(v, audio.currentTime); g.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + d);
+    o.connect(g).connect(audio.destination); o.start(); o.stop(audio.currentTime + d); } catch {}
+}
+function spin() {
+  if (spinning) return;
+  buildSlices();
+  if (!slices.length) return toast('轉盤是空的，先從清單加入幾家餐廳吧！');
+  spinning = true; $('#spinBtn').disabled = true;
+  const target = slices[Math.floor(Math.random() * slices.length)];
+  const w = target.end - target.start, point = target.start + w * (.15 + Math.random() * .7);
+  const T = Math.PI * 2, cur = ((rotation % T) + T) % T;
+  const delta = (((T - point) - cur) % T + T) % T + T * (5 + Math.floor(Math.random() * 3));
+  const from = rotation, dur = 4000 + Math.random() * 1000, t0 = performance.now();
+  let last = sliceAtPointer(from);
+  (function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    rotation = from + delta * (1 - Math.pow(1 - t, 4)); drawWheel();
+    const s = sliceAtPointer(rotation); if (s !== last) { tick(); last = s; }
+    if (t < 1) requestAnimationFrame(frame); else finish(target.c);
+  })(t0);
+}
+function finish(p) {
+  spinning = false; $('#spinBtn').disabled = false; pick = p;
+  const o = isOpen(p);
+  $('#resName').textContent = p.name;
+  $('#resInfo').innerHTML = [p.rating ? `<span class="star">★</span> ${(+p.rating).toFixed(1)}` : '', PRICE_TXT[p.price], p.cat, fmtDist(p.d) ? '距成大 ' + fmtDist(p.d) : '',
+    o === false ? '<span class="close-dot">⚠️ 現在休息中</span>' : o ? '<span class="open-dot">營業中</span>' : ''].filter(Boolean).join('・');
+  $('#resNav').href = gNav(p);
+  $('#resultModal').classList.add('show');
+  [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tick(f, .18, .09), i * 110));
+  confetti();
+}
+function confetti() {
+  const c = $('#confetti'), g = c.getContext('2d'); c.width = innerWidth; c.height = innerHeight;
+  const ps = Array.from({ length: 120 }, () => ({ x: innerWidth / 2, y: innerHeight / 2.5, vx: (Math.random() - .5) * 16,
+    vy: -Math.random() * 14 - 4, s: 5 + Math.random() * 6, r: Math.random() * 6, color: COLORS[Math.floor(Math.random() * COLORS.length)] }));
+  let f = 0;
+  (function loop() {
+    g.clearRect(0, 0, c.width, c.height);
+    ps.forEach(p => { p.vy += .4; p.x += p.vx; p.y += p.vy; p.r += .1; g.save(); g.translate(p.x, p.y); g.rotate(p.r);
+      g.fillStyle = p.color; g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); g.restore(); });
+    if (++f < 140) requestAnimationFrame(loop); else g.clearRect(0, 0, c.width, c.height);
+  })();
+}
+
+/* ===================== 事件 ===================== */
+function closeModals() { document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('show')); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeModals);
+document.querySelectorAll('.modal-bg').forEach(m => m.onclick = e => { if (e.target === m) closeModals(); });
+$('#resShow').onclick = () => {
+  closeModals();
+  if (!filtered().some(p => p.id === pick.id)) { catFilter = 'all'; $('#q').value = ''; $('#fArea').value = ''; $('#fRating').value = '0'; $('#fPrice').value = '9'; $('#fOpen').checked = false; render(); }
+  select(pick.id, true);
+  $('#detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+$('#resSkip').onclick = () => { skipped.add(pick.id); closeModals(); renderCands(); setTimeout(spin, 300); };
+$('#spinBtn').onclick = spin; $('#hub').onclick = spin;
+$('#q').oninput = render;
+['#sort', '#fArea', '#fRating', '#fPrice', '#fOpen'].forEach(s => $(s).onchange = render);
+$('#clearCands').onclick = () => { if (confirm('確定清空轉盤上的所有餐廳？')) { candidates = []; skipped.clear(); saveCands(); } };
+$('#addAll').onclick = () => {
+  const list = filtered().filter(p => !isCand(p.id));
+  if (!list.length) return toast('篩選結果都已經在轉盤上了');
+  if (list.length > 20 && !confirm(`要一次加入 ${list.length} 家嗎？轉盤會變得很擠喔`)) return;
+  list.forEach(p => candidates.push(p.id));
+  saveCands(); toast(`已加入 ${list.length} 家餐廳`);
+};
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModals();
+  if (e.code === 'Space' && !['INPUT','SELECT','TEXTAREA','BUTTON','A','SUMMARY'].includes(document.activeElement.tagName)) { e.preventDefault(); spin(); }
+});
+
+/* ===================== 啟動 ===================== */
+$('#subtitle').textContent = `內建成大周邊 ${DB.length} 家餐廳資料庫：評分、價位、地址、營業時間一次看，丟進轉盤讓它幫你決定。`;
+initFilters(); render(); renderCands();
+</script>
+</body>
+</html>
